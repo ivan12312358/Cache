@@ -3,26 +3,25 @@
 #include <iostream>
 
 
-#define InsertPage(id)										  \
-{															  \
-	id.push_front(page);									  \
-	hash_table.insert({page, {id.cbegin(), ListId::id}});	  \
-															  \
-}															  \
+#define INSERT_PAGE(id, page_)								\
+{															\
+	id.push_front(page_);									\
+	hash_table.insert({page_, {id.cbegin(), ListId::id}});	\
+}															\
 
-#define RemovePage(id)		\
-{							\
-	id.pop_back();			\
-	hash_table.erase(page);	\
-}							\
+#define REMOVE_LAST_PAGE(id)			\
+{										\
+	hash_table.erase(*(--id.end()));	\
+	id.pop_back();						\
+}										\
 
-#define MovePage(src_id, new_id)	\
-{									\
-	RemovePage(src_id)				\
-	InsertPage(new_id)				\
-}									\
+#define MOVE_LAST_PAGE(src_id, new_id)		\
+{											\
+	hash_table.erase  (*(--src_id.end()));	\
+	INSERT_PAGE(new_id, *(--src_id.end()))	\
+	src_id.pop_back();						\
+}											\
 
-using namespace std;
 using page_t = int;
 
 //------------------------------------------------------------------------------------------------------------
@@ -37,7 +36,7 @@ enum class ListId
 template <typename Page>
 class PageIt
 {
-	using ListIt = typename list<Page>::const_iterator;
+	using ListIt = typename std::list<Page>::const_iterator;
 public:
 	ListIt it;
 	ListId id;
@@ -46,27 +45,16 @@ public:
 
 //------------------------------------------------------------------------------------------------------------
 
-template <typename Page>
+template <typename Page, typename PageNum = int>
 class ARC
 {
-	unordered_map <Page, PageIt<Page>> hash_table;
-	list<Page> T1, T2, B1, B2;
-	size_t size, adapt_param, hits;
-
-	void Replace (ListId page_id, Page const& page)
-	{
-		bool expr = (page_id == ListId::B2 &&
-					T1.size() == adapt_param) || (T1.size() > adapt_param);
-
-			if (T1.size() >= 1 && expr)
-				MovePage(T1, B1)
-			else
-				MovePage(T2, B2)
-	}
-
+	std::unordered_map <PageNum, PageIt<Page>> hash_table;
+	std::list<Page> T1, T2, B1, B2;
+	size_t size, hits;
+	long long adapt_param;
 
 public:
-	ARC(int sz): size(sz), adapt_param(0), hits(0) {};
+	ARC(size_t sz): size{sz}, hits{0}, adapt_param{0} {};
 
 	void InsertCache(const Page& page)
 	{
@@ -74,52 +62,13 @@ public:
 
 		if (page_it != hash_table.cend())
 		{
-			switch (page_it->second.id)
-			{
-				case ListId::T1: 	//CASE I//
-					T1.erase (page_it->second.it);
-					break;
-				case ListId::T2:
-					T2.erase (page_it->second.it);
-					break;
-				case ListId::B1:	//CASE II//
-					adapt_param = min<size_t>(size, adapt_param + 
-											  max<size_t>(B2.size() / B1.size(), 1));
-					Replace (ListId::B1, page);
-					B1.erase(page_it->second.it);
-					break;
-				case ListId::B2:	//CASE III//
-					adapt_param = max<size_t>(0, adapt_param - 
-											  max<size_t>(B1.size() / B2.size(), 1));
-					Replace (ListId::B2, page);
-					B2.erase(page_it->second.it);
-					break;
-			}
+			PageInCache(page_it->second, page);
 
-			T2.push_front(page_it->first);
-			page_it->second.it = T2.cbegin();
-			page_it->second.id = ListId::T2;
+			hash_table.erase(page);
+			INSERT_PAGE(T2, page)
 			++hits;
 		}
-		else						//CASE IV//
-		{
-			if (GetL1Size() == size)
-			{
-				if (T1.size() < size)
-				{
-					RemovePage(B1)
-					Replace(ListId::Null, page);
-				}
-				else RemovePage(T1)
-			}
-			else if (GetL1Size() < size && GetLSize() >= size)
-			{
-				if (GetLSize() == 2 * size) RemovePage(B2)
-				Replace(ListId::Null, page);
-			}
-
-			InsertPage(T1)
-		}
+		else PageNotFound(page);
 	}
 
 	size_t GetHits  () const { return hits; 					 }
@@ -129,35 +78,104 @@ public:
 
 	void PrintCache() const
 	{
-		cout << "T1: ";
-		for (auto it: T1) cout << it << " ";
+		std::cout << "Hash Table: ";
+		for (auto it: hash_table) std::cout << it.first << " ";
 
-		cout << endl << "B1: ";
-		for (auto it: B1) cout << it << " ";
+		std::cout << std::endl << "T1: ";
+		for (auto it: T1) std::cout << it << " ";
 
-		cout << endl << "T2: ";
-		for (auto it: T2) cout << it << " ";
+		std::cout << std::endl << "B1: ";
+		for (auto it: B1) std::cout << it << " ";
 
-		cout << endl << "B2: ";
-		for (auto it: B2) cout << it << " ";
+		std::cout << std::endl << "T2: ";
+		for (auto it: T2) std::cout << it << " ";
 
-		cout << endl;
+		std::cout << std::endl << "B2: ";
+		for (auto it: B2) std::cout << it << " ";
+
+		std::cout << std::endl;
+	}
+
+private:
+	void Replace(ListId page_id, Page const& page)
+	{
+		bool expr = (page_id == ListId::B2 &&
+					T1.size() == adapt_param) || (T1.size() > adapt_param);
+
+		if (T1.size() >= 1 && expr)
+			MOVE_LAST_PAGE(T1, B1)
+		else
+			MOVE_LAST_PAGE(T2, B2)
+	}
+
+	void PageInCache(const PageIt<Page>& page_it, const Page& page)
+	{
+		switch (page_it.id)
+		{
+			case ListId::T1:
+				T1.erase(page_it.it);
+				break;
+			case ListId::T2:
+				T2.erase(page_it.it);
+				break;
+			case ListId::B1:
+				adapt_param = std::min<long long>(size, adapt_param + 
+										std::max<long long>(B2.size() / B1.size(), 1));
+				Replace (ListId::B1, page);
+				B1.erase(page_it.it);
+				break;
+			case ListId::B2:
+				adapt_param = std::max<long long>(0, adapt_param - 
+										std::max<long long>(B1.size() / B2.size(), 1));
+				Replace (ListId::B2, page);
+				B2.erase(page_it.it);
+				break;
+		}
+	}
+
+	void PageNotFound(const Page& page)
+	{
+		if (GetL1Size() == size)
+		{
+			if (T1.size() < size)
+			{
+				REMOVE_LAST_PAGE(B1)
+				Replace(ListId::Null, page);
+			}
+			else REMOVE_LAST_PAGE(T1)
+		}
+		else if (GetL1Size() < size && GetLSize() >= size)
+		{
+			if (GetLSize() == 2 * size) 
+				REMOVE_LAST_PAGE(B2)
+			
+			Replace(ListId::Null, page);
+		}
+
+		INSERT_PAGE(T1, page)
 	}
 };
 
 int main()
 {
-	ARC<page_t> cache {5};
+	size_t cache_size{};
 
-	page_t page {};
+	std::cin >> cache_size;
 
-	while(true)
+	ARC<page_t> cache {cache_size};
+
+	page_t page{};
+	size_t page_count{};
+
+	std::cin >> page_count;
+
+	for (int i = 0; i < page_count; i++)
 	{
-		cin >> page;
+		std::cin >> page;
 		cache.InsertCache(page);
-		cache.PrintCache();
-		cout << "Hits: " << cache.GetHits() << endl;
 	}
+
+	std::cout << "Hits: " << cache.GetHits() << std::endl;
 
 	return 0;
 }
