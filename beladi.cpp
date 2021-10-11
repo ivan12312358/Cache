@@ -15,38 +15,46 @@ class BeladiCache
 	std::vector <Page> pages;
 
 public:
-	BeladiCache(size_t size, size_t page_cnt):
-		size{2 * size}, hits{0}, cache(size),
-		pages_table(page_cnt), pages(page_cnt) 
+	BeladiCache(size_t size, size_t page_cnt): 
+		size{size}, hits{0}, 
+		cache{}, pages_table{}, pages{}
 	{
-		for (size_t i = 0; i < page_cnt; i++)
-		{
+		pages.resize(page_cnt);
+
+		for (size_t i = 0; i < pages.size(); i++)
 			std::cin >> pages[i];
+
+		for (long long i = pages.size() - 1; i >= 0; i--)
 			pages_table.insert({pages[i], i});
-		}
 	}
+
 
 	void InsertPages()
 	{
-		for (size_t i = 0; i < pages.size(); ++i)
+		for (size_t i = 0; i != pages.size(); i++)
 		{
 			auto page_it = cache.find(pages[i]);
-
-			if (page_it == cache.cend())
+			if  (page_it == cache.cend())
 			{
 				if (cache.size() == size)
 					DeleteLastUsedPage();
+
 				cache.insert(pages[i]);
 			}
 			else hits++;
+
+			auto table_it = pages_table.find(pages[i]);
+			pages_table.erase(table_it);
 		}
 	}
+
+	size_t GetHits() const { return hits; }
 
 private:
 	void DeleteLastUsedPage()
 	{
-		std::pair<typename std::unordered_multimap<Page, size_t>::iterator, size_t> lup;
-		lup.second = -1;
+		std::pair<Page, size_t> lup{};
+		lup.second = 0;
 
 		for (auto it = cache.begin(); it != cache.end(); it++)
 		{
@@ -54,12 +62,8 @@ private:
 
 			if (page_it != pages_table.cend())
 			{
-				for (auto equal_keys = page_it; equal_keys != pages_table.cend(); equal_keys++)
-					if (lup.second < page_it->second)
-					{
-						lup.first  = page_it;
-						lup.second = page_it->second;
-					}
+				if (lup.second < page_it->second)
+					lup = *page_it;
 			}
 			else
 			{
@@ -68,8 +72,7 @@ private:
 			}
 		}
 
-		cache.erase(lup.first->first);
-		pages_table.erase(lup.first);
+		cache.erase(lup.first);
 	}
 };
 
@@ -81,8 +84,7 @@ int main()
 	BeladiCache<page_t> cache{cache_size, page_count};
 
 	cache.InsertPages();
-
-	std::cout << "Wohoo compiled" << std::endl; 
+	std::cout << cache.GetHits() << std::endl;
 
 	return 0;
 }
