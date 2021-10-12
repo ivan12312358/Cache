@@ -32,7 +32,7 @@ class ARC
 	long long adapt_param;
 
 public:
-	ARC(size_t sz): size{sz/2}, hits{0}, adapt_param{0} {};
+	ARC(size_t sz): size{sz/2 > 0 ? sz/2: 1}, hits{0}, adapt_param{0} {};
 
 	void InsertCache(const Page& page)
 	{
