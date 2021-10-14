@@ -2,6 +2,9 @@
 #include <unordered_map>
 #include <iostream>
 
+
+namespace cache
+{
 //------------------------------------------------------------------------------------------------------------
 
 enum class ListId
@@ -23,7 +26,7 @@ public:
 
 //------------------------------------------------------------------------------------------------------------
 
-template <typename Page, typename PageNum = int>
+template <typename Page, typename PageNum>
 class ARC
 {
 	std::unordered_map <PageNum, PageIt<Page>> hash_table;
@@ -34,20 +37,54 @@ class ARC
 public:
 	ARC(size_t sz): size{sz/2 > 0 ? sz/2: 1}, hits{0}, adapt_param{0} {};
 
-	void InsertCache(const Page& page)
+	bool LookUp(const PageNum& key)
 	{
-		auto page_it = hash_table.find(page);
+		auto page_it = hash_table.find(key);
 
 		if (page_it != hash_table.cend())
 		{
-			PageInCache(page_it->second, page);
+			PageInCache(page_it->second);
 
-			hash_table.erase(page);
-			T2.push_front(page);
-			hash_table.insert({page, {T2.cbegin(), ListId::T2}});
+			T2.push_front(*(page_it->second.it));
+			hash_table.erase(key);
+			hash_table.insert({key, {T2.cbegin(), ListId::T2}});
+
 			++hits;
+			return 1;
 		}
-		else PageNotFound(page);
+
+		return 0;
+	}
+
+	void InsertPage(const Page& page)
+	{
+		if (GetL1Size() == size)
+		{
+			if (T1.size() < size)
+			{
+				hash_table.erase(*std::prev(B1.end()));
+				B1.pop_back();
+				Replace(ListId::Null);
+			}
+			else
+			{
+				hash_table.erase(*std::prev(T1.end()));
+				T1.pop_back();
+			}
+		}
+
+		else if (GetL1Size() < size && GetLSize() >= size)
+		{
+			if (GetLSize() == 2 * size)
+			{
+				hash_table.erase(*std::prev(B2.end()));
+				B2.pop_back();
+			}	
+			Replace(ListId::Null);
+		}
+
+		T1.push_front(page);
+		hash_table.insert({page, {T1.cbegin(), ListId::T1}});
 	}
 
 	size_t GetHits  () const { return hits; 					 }
@@ -63,7 +100,7 @@ private:
 
 		if (T1.size() >= 1 && expr)
 		{
-			Page page = *(--T1.end());
+			Page page = *std::prev(T1.end());
 			hash_table.erase (page);
 			T1.pop_back();
 			B1.push_front(page);
@@ -71,7 +108,7 @@ private:
 		}
 		else
 		{
-			Page page = *(--T2.end());
+			Page page = *std::prev(T2.end());
 			hash_table.erase (page);
 			T2.pop_back();
 			B2.push_front(page);
@@ -79,7 +116,7 @@ private:
 		}
 	}
 
-	void PageInCache(const PageIt<Page>& page_it, const Page& page)
+	void PageInCache(const PageIt<Page>& page_it)
 	{
 		switch (page_it.id)
 		{
@@ -103,36 +140,5 @@ private:
 				break;
 		}
 	}
-
-	void PageNotFound(const Page& page)
-	{
-		if (GetL1Size() == size)
-		{
-			if (T1.size() < size)
-			{
-				hash_table.erase(*(--B1.end()));
-				B1.pop_back();
-				Replace(ListId::Null);
-			}
-			else
-			{
-				hash_table.erase(*(--T1.end()));
-				T1.pop_back();
-			}
-		}
-		else if (GetL1Size() < size && GetLSize() >= size)
-		{
-			if (GetLSize() == 2 * size)
-			{
-				hash_table.erase(*(--B2.end()));
-				B2.pop_back();
-			}	
-			Replace(ListId::Null);
-		}
-
-		T1.push_front(page);
-		hash_table.insert({page, {T1.cbegin(), ListId::T1}});
-	}
 };
-
-//------------------------------------------------------------------------------------------------------------
+} /* namespace cache */

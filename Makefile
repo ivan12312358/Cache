@@ -1,7 +1,12 @@
-arc: ./ARC/arc.hpp ./ARC/main.cpp
-	g++ -O2 ./ARC/arc.hpp ./ARC/main.cpp -o arc
+CXX = g++
+CXXFLAGS = -O2 -o $@
 
-beladi: ./Beladi/beladi.hpp ./Beladi/main.cpp
-	g++ -O2 ./Beladi/beladi.hpp ./Beladi/main.cpp -o beladi
+.PHONY: arc beladi
+
+arc: ./ARC/main.cpp
+	$(CXX) $(CXXFLAGS) ./ARC/main.cpp
+
+beladi: ./Beladi/main.cpp
+	$(CXX) $(CXXFLAGS) ./Beladi/main.cpp
 
 all: arc beladi
