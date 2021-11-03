@@ -17,7 +17,7 @@ int main()
 
 	page_t  page{}, key{};
 
-	for (int i = 0; i < page_count; i++)
+	for (int i = 0; i < page_count; ++i)
 	{
 		std::cin >> page;
 		key = page;

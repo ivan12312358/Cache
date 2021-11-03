@@ -19,17 +19,17 @@ public:
 	{
 		pages.resize(page_cnt);
 
-		for (size_t i = 0; i < pages.size(); i++)
+		for (size_t i = 0; i < pages.size(); ++i)
 			std::cin >> pages[i];
 
-		for (long long i = pages.size() - 1; i >= 0; i--)
+		for (long long i = pages.size() - 1; i >= 0; --i)
 			pages_table.insert({pages[i], i});
 	}
 
 
 	void InsertPages()
 	{
-		for (size_t i = 0; i != pages.size(); i++)
+		for (size_t i = 0; i != pages.size(); ++i)
 		{
 			auto page_it = cache.find(pages[i]);
 			if  (page_it == cache.cend())
@@ -54,7 +54,7 @@ private:
 		std::pair<Page, size_t> lup{};
 		lup.second = 0;
 
-		for (auto it = cache.begin(); it != cache.end(); it++)
+		for (auto it = cache.begin(), it_end = cache.end(); it != it_end; ++it)
 		{
 			auto page_it = pages_table.find(*it);
 
